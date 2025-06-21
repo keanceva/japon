@@ -1,58 +1,26 @@
-# streamlit_app.py
 import streamlit as st
-import torch
-from torch import nn
-import numpy as np
 from PIL import Image
+import os
+import random
 
-class VAE(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.fc1 = nn.Linear(28*28, 256)
-        self.fc21 = nn.Linear(256, 20)
-        self.fc22 = nn.Linear(256, 20)
-        self.fc3 = nn.Linear(20, 256)
-        self.fc4 = nn.Linear(256, 28*28)
-    
-    def encode(self, x):
-        h1 = torch.relu(self.fc1(x))
-        return self.fc21(h1), self.fc22(h1)
-    
-    def reparam(self, mu, logvar):
-        std = torch.exp(0.5*logvar)
-        eps = torch.randn_like(std)
-        return mu + eps * std
+st.set_page_config(page_title="Generador de Dígitos Manuscritos", layout="centered")
+st.title("🧠 Generador de Dígitos Manuscritos")
 
-    def decode(self, z):
-        h3 = torch.relu(self.fc3(z))
-        return torch.sigmoid(self.fc4(h3))
+# Selección del dígito
+digit = st.selectbox("Selecciona un dígito (0–9):", list(range(10)))
 
-    def forward(self, x):
-        mu, logvar = self.encode(x.view(-1, 28*28))
-        z = self.reparam(mu, logvar)
-        return self.decode(z), mu, logvar
+if st.button("🎲 Generar 5 Imágenes"):
+    folder = f"generated_digits/{digit}"
+    if os.path.exists(folder):
+        images = sorted([f for f in os.listdir(folder) if f.endswith(".png")])
+        # Elegir 5 imágenes aleatorias (puedes quitar shuffle si solo hay 5)
+        random.shuffle(images)
+        selected = images[:5]
 
-# Cargar el modelo
-@st.cache_resource
-def load_model():
-    model = VAE()
-    model.load_state_dict(torch.load("vae.pth", map_location="cpu"))
-    model.eval()
-    return model
-
-def generate_images(model, n=5):
-    z = torch.randn(n, 20)  # muestra del espacio latente
-    with torch.no_grad():
-        samples = model.decode(z).view(-1, 28, 28)
-    return samples
-
-# INTERFAZ Streamlit
-st.title("Generador de Dígitos Manuscritos")
-digit = st.selectbox("Selecciona un dígito (este modelo no está condicionado)", list(range(10)))
-
-if st.button("Generar Imágenes"):
-    model = load_model()
-    images = generate_images(model, 5)
-    for img in images:
-        pil_img = Image.fromarray((img.numpy()*255).astype(np.uint8), mode="L")
-        st.image(pil_img, width=100)
+        cols = st.columns(5)
+        for i, img_name in enumerate(selected):
+            img_path = os.path.join(folder, img_name)
+            image = Image.open(img_path)
+            cols[i].image(image, caption=f"{digit}", use_column_width=True)
+    else:
+        st.error("No se encontraron imágenes para este dígito. ¿Ya las generaste?")
