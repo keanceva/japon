@@ -1,6 +1,6 @@
 streamlit
+torch
 pytorch
 numpy
 Pillow
 torchvision
-torch
